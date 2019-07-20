@@ -27,7 +27,7 @@ func MyMiddleware() http.Middleware {
 
             h.ServeHTTP(r, w)
 
-            fmt.Println("executed after next middlewares/handlers")")")")
+            fmt.Println("executed after next middlewares/handlers")
         })
     }
 }
@@ -62,7 +62,7 @@ func main() {
         Handler: mux.NewRouter(),
     }
 
-    idleConnsClosed := server.GracefulShutdown(
+    idleConnsClosed := GracefulShutdown(
         server,         // The HTTP server
         10*time.Second, // Wait time
         logrus.New(),   // Optional logger
