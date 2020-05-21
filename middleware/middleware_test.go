@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -101,5 +102,69 @@ func Test_PanicRecovery(t *testing.T) {
 	if !strings.Contains(buf.String(), "i'm just going to panic here if that's ok...") {
 		t.Fatal("did not log after panicing")
 	}
+}
 
+func Test_Order(t *testing.T) {
+	var (
+		buf              = &bytes.Buffer{}
+		logger           = log.New(buf, "", log.LstdFlags)
+		createMiddleware = func(logString string) func(h http.Handler) http.Handler {
+			return func(h http.Handler) http.Handler {
+				return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+					// This will be called BEFORE the next middleware and
+					// handler.
+					logger.Println(logString)
+
+					// This is the next middleware or handler.
+					h.ServeHTTP(rw, r)
+
+					// This will be called AFTER the next middleware or handler.
+					logger.Println(logString)
+				})
+			}
+		}
+	)
+
+	logger.SetOutput(buf)
+
+	handlerWithMiddleware := AddMiddlewares(
+		http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+			logger.Println("the handler")
+		}),
+		createMiddleware("one"),
+		createMiddleware("two"),
+		createMiddleware("three"),
+	)
+
+	ts := httptest.NewServer(handlerWithMiddleware)
+
+	defer ts.Close()
+
+	_, err := http.Get(ts.URL)
+	if err != nil {
+		t.Fatal("could not send http request")
+	}
+
+	expectedOutput := []string{
+		// These are the results by logging before h.ServeHTTP and will be in
+		// the reverse order from how they're passed to AddMiddlewares().
+		"three", "two", "one",
+		// This simulates thehandler.
+		"the handler",
+		// These are the results by logging after h.ServeHTTP and will be in the
+		// same order they're passed to AddMiddlewares().
+		"one", "two", "three",
+	}
+	ordereredOutput := strings.Split(buf.String(), "\n")
+	ordereredOutput = ordereredOutput[:len(ordereredOutput)-1] // Remove last empty string.
+
+	if len(expectedOutput) != len(ordereredOutput) {
+		t.Fatal("logs missmatched")
+	}
+
+	for i := range expectedOutput {
+		if !strings.Contains(ordereredOutput[i], expectedOutput[i]) {
+			t.Fatal("missmatched order or middleware")
+		}
+	}
 }

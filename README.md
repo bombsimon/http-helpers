@@ -8,7 +8,10 @@ A collection of useful middlewares that may be re-use between different projects
 involving an HTTP server. The `Middleware` type is just a function that takes a
 `http.Handler` and returns a `http.Handler`. Each handler should (manually)
 invoce the handlers `ServeHTTP()` method. The middlewares will be exdecuted in
-the order they're added.
+the **reverse** order they're added, although depending on if you call
+`ServeHTTP` before or after your code it might be executed in before or after
+(or both of them) in relation to the actual handler. See
+[tests](middleware/middleware_test.go) for more details.
 
 ```go
 func main() {

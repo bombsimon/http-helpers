@@ -33,7 +33,8 @@ import (
 type Middleware func(http.Handler) http.Handler
 
 // AddMiddlewares will add all middlewares in the passed orter and return a
-// handler which may be used for the http server.
+// handler which may be used for the http server. Since they're added in the
+// order they're passed, they will be executed in the reverse order.
 func AddMiddlewares(h http.Handler, middlewares ...Middleware) http.Handler {
 	for _, middleware := range middlewares {
 		h = middleware(h)
