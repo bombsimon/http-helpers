@@ -27,6 +27,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/time/rate"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -191,6 +193,25 @@ func Prometheus() Middleware {
 			handler.ServeHTTP(rw, r)
 
 			counter.WithLabelValues(strconv.Itoa(rw.statusCode), r.Method).Inc()
+		})
+	}
+}
+
+// RateLimiter is a middleware that rate limits requests.
+func RateLimiter(interval time.Duration, size int) Middleware {
+	limiter := rate.NewLimiter(
+		rate.Every(interval),
+		size,
+	)
+
+	return func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !limiter.Allow() {
+				http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
+				return
+			}
+
+			h.ServeHTTP(w, r)
 		})
 	}
 }

@@ -62,6 +62,48 @@ func Test_Logger(t *testing.T) {
 	}
 }
 
+func Test_RateLimiter(t *testing.T) {
+	requestsAllowedBeforeRateLimiting := 2
+	expectedTimeBeforeRateLimiting := 10 * time.Millisecond
+
+	handlerWithMiddleware := AddMiddlewares(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}),
+		RateLimiter(
+			expectedTimeBeforeRateLimiting,
+			requestsAllowedBeforeRateLimiting,
+		),
+	)
+
+	ts := httptest.NewServer(handlerWithMiddleware)
+	defer ts.Close()
+
+	assertStatusCode := func(got, expected int) {
+		if got != expected {
+			t.Fatalf("unexpected status code, got: %v, expected: %v", got, expected)
+		}
+	}
+
+	// Do as many requests as we're allowed + 1. On the last one we are
+	// expected to be rate limited.
+	for i := 0; i <= requestsAllowedBeforeRateLimiting; i++ {
+		response, _ := http.Get(ts.URL)
+
+		expectedStatus := http.StatusOK
+		if i == requestsAllowedBeforeRateLimiting {
+			expectedStatus = http.StatusTooManyRequests
+		}
+
+		assertStatusCode(response.StatusCode, expectedStatus)
+	}
+	// Sleeping in tests isn't great but I reckon this short time is ok...
+	// Sorry!
+	time.Sleep(expectedTimeBeforeRateLimiting)
+
+	// We should now be able to request again.
+	response, _ := http.Get(ts.URL)
+	assertStatusCode(response.StatusCode, http.StatusOK)
+}
+
 func Test_PanicRecovery(t *testing.T) {
 	var (
 		logger         = logrus.New()
@@ -96,7 +138,7 @@ func Test_PanicRecovery(t *testing.T) {
 	case <-inPanicHandler:
 		// We called the panic handler!
 	case <-time.After(10 * time.Millisecond):
-		t.Fatal("panich andler never called!")
+		t.Fatal("panic handler never called!")
 	}
 
 	if !strings.Contains(buf.String(), "i'm just going to panic here if that's ok...") {
