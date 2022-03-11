@@ -71,6 +71,7 @@ func Test_RateLimiter(t *testing.T) {
 		RateLimiter(
 			expectedTimeBeforeRateLimiting,
 			requestsAllowedBeforeRateLimiting,
+			requestsAllowedBeforeRateLimiting,
 		),
 	)
 

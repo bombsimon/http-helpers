@@ -198,11 +198,13 @@ func Prometheus() Middleware {
 }
 
 // RateLimiter is a middleware that rate limits requests.
-func RateLimiter(interval time.Duration, size int) Middleware {
+func RateLimiter(interval time.Duration, limit, burst int) Middleware {
 	limiter := rate.NewLimiter(
 		rate.Every(interval),
-		size,
+		limit,
 	)
+
+	limiter.SetBurst(burst)
 
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
